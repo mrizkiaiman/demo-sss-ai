@@ -1,0 +1,28 @@
+__pycache__/
+*.py[cod]
+.venv/
+
+# Local credentials and private keys
+.env
+.env.*
+!.env.example
+secrets.env
+.claude/settings.local.json
+*.pem
+id_rsa*
+id_ed25519*
+
+# Common database export and backup files
+/dump/
+/dumps/
+/backup/
+/backups/
+*dump*.sql
+*backup*.sql
+*.sql.gz
+*.dump
+*.backup
+*.bak
+*.sqlite
+*.sqlite3
+*.db

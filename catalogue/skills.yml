@@ -1,0 +1,19 @@
+---
+skill_catalogue:
+  required_skills:
+    - code-review
+    - security-review
+  groups:
+    - name: Development
+      description: Development workflows, engineering standards, and implementation tools.
+      skills:
+        - code-review
+        - security-review
+        - grilling
+        - handoff
+        - improve-codebase-architecture
+        - ui-ux-pro-max
+    - name: Productivity
+      description: Research, learning, and planning workflows.
+      skills:
+        - teach

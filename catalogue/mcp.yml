@@ -1,0 +1,12 @@
+---
+mcp_servers:
+  codebase-memory-mcp:
+    command: npx
+    args: [-y, codebase-memory-mcp@0.11.0]
+    startup_timeout_sec: 60
+  sentry:
+    url: https://mcp.sentry.dev/mcp
+  jira:
+    url: https://mcp.atlassian.com/v2/mcp
+  gitlab:
+    url: https://gitlab.com/api/v4/mcp

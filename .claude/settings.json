@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "deny": [
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(./secrets.env)",
+      "Read(./**/secrets.env)",
+      "Read(./*.pem)",
+      "Read(./**/*.pem)",
+      "Read(./id_rsa*)",
+      "Read(./**/id_rsa*)",
+      "Read(./id_ed25519*)",
+      "Read(./**/id_ed25519*)",
+      "Read(./dump/**)",
+      "Read(./dumps/**)",
+      "Read(./backup/**)",
+      "Read(./backups/**)",
+      "Read(./**/*dump*.sql)",
+      "Read(./**/*backup*.sql)",
+      "Read(./**/*.sql.gz)",
+      "Read(./**/*.dump)",
+      "Read(./**/*.backup)",
+      "Read(./**/*.bak)",
+      "Read(./**/*.sqlite)",
+      "Read(./**/*.sqlite3)",
+      "Read(./**/*.db)"
+    ]
+  }
+}

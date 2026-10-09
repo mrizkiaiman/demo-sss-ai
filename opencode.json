@@ -1,0 +1,27 @@
+{
+  "permission": {
+    "read": {
+      "*": "allow",
+      "**/.env": "deny",
+      "**/.env.*": "deny",
+      "**/secrets.env": "deny",
+      "**/*.pem": "deny",
+      "**/id_rsa*": "deny",
+      "**/id_ed25519*": "deny",
+      "**/dump/**": "deny",
+      "**/dumps/**": "deny",
+      "**/backup/**": "deny",
+      "**/backups/**": "deny",
+      "**/*dump*.sql": "deny",
+      "**/*backup*.sql": "deny",
+      "**/*.sql.gz": "deny",
+      "**/*.dump": "deny",
+      "**/*.backup": "deny",
+      "**/*.bak": "deny",
+      "**/*.sqlite": "deny",
+      "**/*.sqlite3": "deny",
+      "**/*.db": "deny",
+      "**/.env.example": "allow"
+    }
+  }
+}

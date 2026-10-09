@@ -1,0 +1,16 @@
+client_skill_paths:
+  kiro: .kiro/skills
+  claude: .claude/skills
+  opencode: .config/opencode/skills
+  antigravity: .gemini/config/skills
+  codex: .agents/skills
+
+mcp_client_paths:
+  kiro: .kiro/settings/mcp.json
+  claude: .claude.json
+  opencode: .config/opencode/opencode.json
+  antigravity: .gemini/config/mcp_config.json
+  codex: .codex/config.toml
+
+security_config_dir: .config/company-ai
+security_hooks_dir: .config/company-ai/git-hooks

@@ -1,0 +1,11 @@
+title = "Company AI secret and PII checks"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "indonesia-nik"
+description = "Potential Indonesian NIK near an identifying label"
+regex = '''(?i)\b(?:nik|nomor[ _-]*induk[ _-]*kependudukan|no\.?[ _-]*ktp|ktp)\b\D{0,16}([0-9]{16})\b'''
+secretGroup = 1
+keywords = ["nik", "ktp", "kependudukan"]

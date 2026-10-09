@@ -1,0 +1,28 @@
+#!/bin/sh
+# SSS_GLOBAL_PRE_COMMIT_HOOK
+set -eu
+
+company_hooks_dir=${0%/*}
+original_hook="$company_hooks_dir/pre-commit.company-original"
+
+is_company_hook() {
+  while IFS= read -r line || [ -n "$line" ]; do
+    case "$line" in
+      '# SSS_GLOBAL_PRE_COMMIT_HOOK'|'original_hook="$company_hooks_dir/pre-commit.company-original"')
+        return 0
+        ;;
+    esac
+  done < "$1"
+  return 1
+}
+
+if [ -x "$original_hook" ] && ! is_company_hook "$original_hook"; then
+  "$original_hook"
+fi
+
+if ! command -v gitleaks >/dev/null 2>&1; then
+  echo "Gitleaks is required for commits. Install Gitleaks or run git commit --no-verify to bypass this local check." >&2
+  exit 1
+fi
+
+exec gitleaks git -c "$HOME/.config/company-ai/gitleaks.toml" --pre-commit --staged --redact --verbose
