@@ -30,7 +30,7 @@ The main reason to select Ansible is therefore operational fit: the current deli
 | Configuration model | Tasks inspect and update destination files. The MCP role merges managed entries into existing JSON/JSON5/TOML settings. | Home Manager evaluates a declared profile and links generated files from the Nix store into the home directory. The current MCP module writes a complete shared JSON object to its destinations, so it needs review before use where developers have existing MCP entries. |
 | Preview and repeatability | Check/diff preview; unchanged resources should report no change when tasks support check mode and are idempotent. | Flake inputs are locked, and Nix builds immutable store outputs. `home-manager switch` activates a generation. |
 | Rollback | MCP file backups are available for changed files; restoring means using the backup or applying a corrected configuration. | Home Manager maintains generations that can be selected for rollback. |
-| Scope in current repo | Five AI coding clients, skills, MCP, optional Gitleaks hook. | Broader toolchain, shell, packages, agent configs, security files, and AI settings are described in its README and modules. |
+| Scope in current repo | Five AI coding clients, skills, and MCP. | Broader toolchain, shell, packages, agent configs, security files, and AI settings are described in its README and modules. |
 | Practical tradeoff | Simpler for this file-configuration PoC, but custom merge behavior must be maintained and tested. | Better when full environment reproducibility is a requirement, but Nix and Home Manager increase onboarding and operational complexity for a pilot that mainly edits client config files. |
 
 The two repositories have different scopes. The Nix repository describes a broader developer platform, while the Ansible repository focuses on installing shared skills and configuring MCP across the five clients. Keep that distinction explicit in a decision document. Nix is not rejected for technical inability; it is a larger platform choice than this PoC currently needs.
@@ -50,7 +50,7 @@ These alternatives are not incapable in general. The decision is based on the cu
 
 ## Decision and caveats
 
-- **Decision for the PoC:** Keep Ansible as the apply engine for workstation skills, MCP settings, and optional Gitleaks setup. Use the existing Python launcher for selection and confirmation.
+- **Decision for the PoC:** Keep Ansible as the apply engine for workstation skills and MCP settings. Use the existing Python launcher for selection and confirmation.
 - **Revisit Nix if:** the approved scope includes pinning/installing a common toolchain, managing broader shell and package state, or requiring generation-based environment rollback.
 - **Revisit chezmoi if:** the scope narrows to cross-platform dotfile distribution and the team prefers a tool centered on user configuration files.
 - **Do not present Ansible check mode as proof of runtime behavior.** It predicts supported task changes. Each selected AI client still needs an actual skill-load and MCP-connection check.

@@ -11,6 +11,3 @@ mcp_client_paths:
   opencode: .config/opencode/opencode.json
   antigravity: .gemini/config/mcp_config.json
   codex: .codex/config.toml
-
-security_config_dir: .config/company-ai
-security_hooks_dir: .config/company-ai/git-hooks

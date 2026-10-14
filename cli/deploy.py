@@ -48,7 +48,6 @@ class DeploymentPlan:
         self.home = home.resolve()
         self.directories = {}
         self.writes = []
-        self.hooks_path = None
 
     def destination(self, relative):
         relative = Path(relative)
@@ -110,18 +109,6 @@ class DeploymentPlan:
             replace_file(write)
             applied += 1
 
-        if self.hooks_path is not None:
-            environment = os.environ.copy()
-            environment['HOME'] = str(self.home)
-            result = subprocess.run(
-                ['git', 'config', '--global', 'core.hooksPath', str(self.hooks_path)],
-                env=environment,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.PIPE,
-                text=True,
-            )
-            if result.returncode:
-                raise ValueError('Could not configure the global Git hooks path.')
         return applied
 
 
@@ -307,54 +294,10 @@ def add_mcp_configs(plan, clients, servers, client_paths):
         plan.add_content(path, content, f'MCP {client}', mode=0o600)
 
 
-def add_security_config(plan, root, client_config):
-    environment = os.environ.copy()
-    environment['HOME'] = str(plan.home)
-    for command in (['git', '--version'], ['gitleaks', 'version']):
-        result = subprocess.run(command, env=environment, capture_output=True, text=True)
-        if result.returncode:
-            tool = command[0]
-            raise ValueError(f'{tool} must be installed and available on PATH before enabling the security component.')
-
-    hooks_result = subprocess.run(
-        ['git', 'config', '--global', '--path', '--get', 'core.hooksPath'],
-        env=environment,
-        capture_output=True,
-        text=True,
-    )
-    if hooks_result.returncode not in (0, 1):
-        raise ValueError('Could not read the global Git hooks path.')
-    if hooks_result.returncode == 0:
-        hooks_dir = Path(hooks_result.stdout.strip()).expanduser()
-        if not hooks_dir.is_absolute():
-            raise ValueError('The configured global core.hooksPath must be absolute.')
-        if not hooks_dir.is_dir():
-            raise ValueError(f'The configured global hooks path is not an existing directory: {hooks_dir}')
-    else:
-        hooks_dir = plan.destination(client_config['security_hooks_dir'])
-        plan.add_directory(hooks_dir, 0o700)
-        plan.hooks_path = hooks_dir
-
-    config_dir = plan.destination(client_config['security_config_dir'])
-    plan.add_directory(config_dir, 0o700)
-    plan.add_source(root / 'security/gitleaks.toml', config_dir / 'gitleaks.toml', 'Gitleaks rules', mode=0o600)
-
-    hook_path = hooks_dir / 'pre-commit'
-    original_path = hooks_dir / 'pre-commit.company-original'
-    if hook_path.exists() and hook_path.is_file() and os.access(hook_path, os.X_OK):
-        hook_text = hook_path.read_text(encoding='utf-8', errors='replace')
-        company_hook = '# SSS_GLOBAL_PRE_COMMIT_HOOK' in hook_text or 'original_hook="$company_hooks_dir/pre-commit.company-original"' in hook_text
-        if not company_hook and not original_path.exists():
-            plan.add_content(original_path, hook_path.read_bytes(), 'Existing Git hook', mode=0o700, backup=False)
-    plan.add_source(root / 'security/pre-commit', hook_path, 'Global Git hook', mode=0o700)
-
-
 def build_plan(root, home, components, clients, skills, skill_catalogue, mcp_servers, client_config):
     plan = DeploymentPlan(home)
     if 'skills' in components and skills:
         add_skill_packages(plan, root, clients, skills, skill_catalogue, client_config['client_skill_paths'])
     if 'mcp' in components and mcp_servers:
         add_mcp_configs(plan, clients, mcp_servers, client_config['mcp_client_paths'])
-    if 'security' in components:
-        add_security_config(plan, root, client_config)
     return plan

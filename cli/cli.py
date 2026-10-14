@@ -20,7 +20,7 @@ LABELS = {
     'antigravity': 'Antigravity IDE',
     'codex': 'Codex',
 }
-COMPONENT_LABELS = {'skills': 'Skills', 'mcp': 'MCP servers', 'security': 'Gitleaks and global Git hook'}
+COMPONENT_LABELS = {'skills': 'Skills', 'mcp': 'MCP servers'}
 BACK = object()
 
 
@@ -204,7 +204,7 @@ def select_clients(clients):
     return select_options(clients, 'clients to configure', LABELS, back_label='Back')
 
 
-def print_change_recap(target_home, clients, skills, groups, servers, security=False, preview_only=False):
+def print_change_recap(target_home, clients, skills, groups, servers, preview_only=False):
     width = max(20, min(88, shutil.get_terminal_size((88, 24)).columns - 2))
     content_width = width - 4
     color = sys.stdout.isatty() and os.environ.get('TERM', 'dumb') != 'dumb' and 'NO_COLOR' not in os.environ
@@ -222,9 +222,7 @@ def print_change_recap(target_home, clients, skills, groups, servers, security=F
                 lines.extend([f'  {group_name}', '    ' + ', '.join(selected)])
     if servers:
         lines.extend(['', f'MCP / {len(servers)} selected', '  ' + ', '.join(servers)])
-    if security:
-        lines.extend(['', 'SECURITY', '  Shared Gitleaks rules and global Git hook', f'  Rules: {target_home / ".config/company-ai/gitleaks.toml"}', '  Existing hook preserved and chained when present'])
-    if not skills and not servers and not security:
+    if not skills and not servers:
         lines.extend(['', 'No skills, MCP servers, or security changes selected.'])
     lines.extend(['', 'Preview only. No changes applied.' if preview_only else 'Review the selections before applying.'])
     print('\n' + top + rule * (width - 2) + top_end)
@@ -314,10 +312,6 @@ def main():
     except (OSError, ValueError, KeyError, TypeError, yaml.YAMLError) as error:
         parser.error(str(error))
     print('\nInstallation targets:')
-    if 'security' in components:
-        print(f'  Global Gitleaks rules: {target_home / client_config["security_config_dir"] / "gitleaks.toml"}')
-        print(f'  Global Git hook: existing core.hooksPath, or {target_home / client_config["security_hooks_dir"]}')
-        print('  Existing pre-commit hook, if any: preserved and chained')
     for client in clients:
         if 'skills' in components:
             print(f"  {LABELS.get(client, client)} skills: {target_home / client_config['client_skill_paths'][client]}")
@@ -334,14 +328,12 @@ def main():
             print(f"MCP {name}: remote OAuth server at {definition['url']}")
         else:
             print(f"MCP {name}: {definition['command']} {' '.join(definition.get('args', []))}")
-    print_change_recap(target_home, clients, skills, groups, selected_mcp, 'security' in components, args.check)
+    print_change_recap(target_home, clients, skills, groups, selected_mcp, args.check)
     print(f'\nPlanned file changes: {len(changes)}')
-    if plan.hooks_path is not None:
-        print(f'Global Git hooks path will be set to: {plan.hooks_path}')
     if args.verbose:
         for write in changes:
             print(f'  {write.label}: {write.path}')
-    if not changes and plan.hooks_path is None:
+    if not changes:
         print('No changes are needed.')
         return 0
     if args.check:
@@ -354,8 +346,6 @@ def main():
     except (OSError, ValueError, RuntimeError) as error:
         parser.error(f'Apply failed: {error}')
     print(f'\nApply completed. Updated {applied} file(s).', flush=True)
-    if plan.hooks_path is not None:
-        print(f'Configured global Git hooks path: {plan.hooks_path}', flush=True)
     return 0
 
 

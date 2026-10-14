@@ -11,13 +11,12 @@ SSS is a Python CLI for installing shared Skills and configuring MCP servers on 
   - Antigravity IDE
   - Codex
 - Configures selected local stdio and remote HTTP MCP servers from `catalogue/mcp.yml`.
-- Optionally installs shared Gitleaks rules and a global Git pre-commit hook.
 - Shows planned file changes and asks before applying them.
 - Merges selected MCP entries into existing client configuration. It keeps unrelated settings, backs up files it changes, and stops before writing MCP files if a selected configuration is malformed.
 
 `code-review` and `security-review` are required and stay selected. Other Skills and MCP servers are optional. The CLI does not install or update AI client applications or native MCP binaries. Clients start local MCP servers and handle remote OAuth after setup. If `codebase-memory-mcp` is not installed, the CLI uses the pinned `npx` command from the catalogue.
 
-SSS does not enforce AI permissions, file or network access, data privacy, or model routing. Ignore files and Gitleaks can reduce accidental exposure, but they do not stop sensitive data from reaching an LLM. See [SECURITY.md](SECURITY.md) for the enforcement boundary.
+SSS does not enforce AI permissions, file or network access, data privacy, or model routing. Ignore files can reduce accidental exposure, but they do not stop sensitive data from reaching an LLM. See [SECURITY.md](SECURITY.md) for the enforcement boundary.
 
 ## Install
 
@@ -27,7 +26,6 @@ Requirements:
 - Git.
 - Node.js and npm for the setup command.
 - Node.js if the CLI needs the `npx` fallback for `codebase-memory-mcp`.
-- Gitleaks on `PATH` if you select the security component.
 
 Clone the repository and start the setup menu:
 
@@ -37,7 +35,7 @@ cd sss-ai-cli
 npm run setup
 ~~~
 
-The setup command creates `.venv`, installs the Python dependencies, and opens the menu. Skills are selected automatically. Choose whether to configure MCP servers or the optional security setup too.
+The setup command creates `.venv`, installs the Python dependencies, and opens the menu. Skills are selected automatically. Choose whether to configure MCP servers.
 
 - Use arrow keys to move, Space to toggle, and Enter to continue.
 - In the Skills menu, `code-review` and `security-review` stay selected.
@@ -57,7 +55,6 @@ python3 -m venv .venv
 - **Add a Skill.** Create `skills/<skill-name>/` with a `SKILL.md`, then add the Skill to `catalogue/skills.yml`. Run `.venv/bin/python -m cli --validate` to check the catalogue and public Skill packages.
 - **Add an MCP server.** Add its local command and arguments, or remote URL, to `catalogue/mcp.yml`. The CLI uses a native `codebase-memory-mcp` binary when available, then falls back to the pinned `npx` command.
 - **Change client paths.** Edit `config/clients.yml`.
-- **Change the Gitleaks setup.** Edit the files under `security/`.
 
 The CLI writes only selected MCP entries and validates all selected client configurations before writing any of them. JSONC comments and formatting are normalized to JSON. TOML comments and formatting are preserved. Deselecting a Skill does not remove files already installed on a workstation.
 
@@ -77,26 +74,19 @@ npm run setup
 .venv/bin/python -m cli --target-home /absolute/home/path --check
 ~~~
 
-Add `--verbose` to list planned file paths. The CLI does not print MCP configuration values or hook contents.
+Add `--verbose` to list planned file paths. The CLI does not print MCP configuration values.
 
 Use `--target-home /absolute/home/path` to preview or apply against another home directory. Add `--check` to preview without applying.
 
-## Security hook
-
-Install Gitleaks first, then select **Gitleaks and global Git hook** in the setup menu. SSS installs rules at `~/.config/company-ai/gitleaks.toml`. It uses an existing global `core.hooksPath` when configured and preserves and chains an existing executable hook as `pre-commit.company-original`. Otherwise, it installs the hook under `~/.config/company-ai/git-hooks/` and configures Git to use that path.
-
-The hook scans staged changes. `git commit --no-verify` bypasses it. Gitleaks detects secrets, not general PII.
-
 ## Project checks
 
-GitHub Actions and GitLab CI install the Python dependencies, check Python syntax, and verify that the CLI starts. They also scan Git history with Gitleaks.
+GitHub Actions and GitLab CI install the Python dependencies, check Python syntax, validate catalogues, and verify that the CLI starts.
 
 ## Repository layout
 
 ~~~text
 catalogue/          Shared Skills and MCP catalogues
 config/             Client configuration paths
-security/           Gitleaks rules and Git hook
 skills/             Public Skill packages
 cli/                Python CLI and configuration writer
 package.json        Setup shortcut
