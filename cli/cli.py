@@ -85,23 +85,94 @@ def catalogue_labels(catalogue, names):
     }
 
 
+def choose_scope(screen):
+    curses.curs_set(0)
+    if curses.has_colors():
+        curses.start_color()
+        curses.use_default_colors()
+        curses.init_pair(1, curses.COLOR_MAGENTA, -1)
+        curses.init_pair(2, curses.COLOR_CYAN, -1)
+    options = [
+        ('project', 'Project', 'Write native files below this project'),
+        ('global', 'Global', 'Write native files below your home'),
+    ]
+    cursor = 0
+    while True:
+        screen.erase()
+        height, width = screen.getmaxyx()
+        compact = width < 78 or height < 24
+        content_x = 2 if compact else 3
+
+        def draw_at(row, column, text, style=0, max_width=None):
+            if row < 0 or row >= height - 1 or column >= width - 1:
+                return
+            available = width - column - 1 if max_width is None else min(max_width, width - column - 1)
+            if available > 0:
+                screen.addnstr(row, column, text, available, style)
+
+        accent = curses.color_pair(1) if curses.has_colors() else curses.A_BOLD
+        secondary = curses.color_pair(2) if curses.has_colors() else curses.A_DIM
+        muted = curses.A_DIM
+        active_style = accent | curses.A_BOLD
+
+        if compact:
+            draw_at(1, content_x, 'SSS', active_style)
+            draw_at(1, content_x + 6, 'WORKSTATION SETUP', secondary | curses.A_BOLD)
+            draw_at(3, content_x, 'Choose installation scope', curses.A_BOLD)
+            draw_at(4, content_x, 'Select where native configuration files should be written.', muted)
+            list_row = 6
+        else:
+            for row, line in enumerate(BANNER.splitlines(), 1):
+                draw_at(row, content_x, line, muted)
+            draw_at(8, content_x, 'WORKSTATION SETUP', active_style)
+            draw_at(9, content_x, 'Native Skills + MCP configuration', muted)
+            draw_at(11, content_x, 'Choose installation scope', curses.A_BOLD)
+            draw_at(12, content_x, 'Select where native configuration files should be written.', muted)
+            list_row = 14
+
+        for index, (_, label, description) in enumerate(options):
+            active = cursor == index
+            row = list_row + index
+            draw_at(row, content_x, '▌' if active else ' ', active_style if active else 0)
+            draw_at(row, content_x + 2, '●' if active else '○', active_style if active else secondary)
+            draw_at(row, content_x + 5, label, active_style if active else curses.A_BOLD)
+            description_x = content_x + 18
+            draw_at(row, description_x, '·  ' + description, secondary if not active else active_style)
+
+        draw_at(height - 4, 2, '─' * min(width - 4, 76), muted)
+        draw_at(height - 3, 2, '↑↓ navigate   Enter continue   q quit', muted)
+        screen.refresh()
+        key = screen.getch()
+        if key in (ord('q'), 27):
+            raise KeyboardInterrupt
+        if key in (curses.KEY_UP, ord('k')):
+            cursor = (cursor - 1) % len(options)
+        elif key in (curses.KEY_DOWN, ord('j')):
+            cursor = (cursor + 1) % len(options)
+        elif key in (10, 13, curses.KEY_ENTER):
+            return options[cursor][0]
+
+
 def resolve_scope_target(args, parser):
     scope = args.scope
     if scope is None:
         if not (sys.stdin.isatty() and sys.stdout.isatty()):
             parser.error('Scope is required in non-interactive mode. Use --scope global or --scope project.')
-        print('Choose installation scope:')
-        print('  1. project  Write native files below the current project root')
-        print('  2. global   Write native files below your home directory')
-        while True:
-            answer = input('Scope [project/global]: ').strip().lower()
-            if answer in {'1', 'project', 'p'}:
-                scope = 'project'
-                break
-            if answer in {'2', 'global', 'g'}:
-                scope = 'global'
-                break
-            print('Choose project or global.')
+        if os.environ.get('TERM', 'dumb') != 'dumb':
+            scope = curses.wrapper(choose_scope)
+        else:
+            print('Choose installation scope:')
+            print('  1. project  Write native files below the current project root')
+            print('  2. global   Write native files below your home directory')
+            while True:
+                answer = input('Scope [project/global]: ').strip().lower()
+                if answer in {'1', 'project', 'p'}:
+                    scope = 'project'
+                    break
+                if answer in {'2', 'global', 'g'}:
+                    scope = 'global'
+                    break
+                print('Choose project or global.')
     if scope == 'project' and args.target_home is not None:
         parser.error('--target-home is only valid with --scope global; use --project-root for project scope.')
     if scope == 'global' and args.project_root is not None:
