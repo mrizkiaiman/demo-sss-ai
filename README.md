@@ -55,15 +55,22 @@ Without `--project-root`, project scope uses the current working directory. SSS 
 .venv/bin/python -m cli --scope global --target-home /absolute/home/path --check
 ```
 
-The private npm package provides an additional entrypoint. It has not been published to a registry because no organization registry or credentials have been agreed:
+The public npm package provides the `npx` entrypoint. Run the explicit setup command once from the project where SSS should operate:
 
 ```bash
-npm pack --dry-run
-npm exec --package . -- sss --help
-npm exec --package . -- sss --scope project --project-root /absolute/path/to/project --check
+npx sss-ai-cli setup
 ```
 
-The Node wrapper does not install dependencies silently. It uses `SSS_PYTHON` when provided, `.venv/bin/python` when available, and falls back to `python3`.
+The setup command creates a cached user-level Python environment, installs the pinned requirements, and then starts the SSS menu in the current working directory. It does not create a `.venv` inside the target project.
+
+After setup, the normal project-level command is:
+
+```bash
+npx sss-ai-cli --scope project --project-root /absolute/path/to/project --check
+npx sss-ai-cli --scope project --project-root /absolute/path/to/project
+```
+
+The wrapper keeps the caller's working directory as the project context. `SSS_PYTHON` can still override the Python environment when needed. Dependency installation happens only through the explicit `setup` command.
 
 ## Setup flow
 
