@@ -1,6 +1,6 @@
 {
   "name": "sss-ai-cli",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": false,
   "description": "Thin native Skills and MCP launcher for developer AI clients",
   "bin": {
@@ -13,6 +13,7 @@
     "config/",
     "catalogue/",
     "templates/",
+    "vendor/",
     "skills/",
     "requirements.txt",
     "README.md",
