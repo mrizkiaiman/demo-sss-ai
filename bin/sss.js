@@ -12,6 +12,7 @@ const vendor = path.join(root, 'vendor');
 const pythonEnv = {
   ...process.env,
   PYTHONPATH: [root, vendor, process.env.PYTHONPATH].filter(Boolean).join(path.delimiter),
+  PYTHONDONTWRITEBYTECODE: '1',
 };
 const candidates = [
   process.env.SSS_PYTHON,
