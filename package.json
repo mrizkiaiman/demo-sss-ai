@@ -1,7 +1,7 @@
 {
   "name": "sss-ai-cli",
   "version": "0.1.0",
-  "private": true,
+  "private": false,
   "description": "Thin native Skills and MCP launcher for developer AI clients",
   "bin": {
     "sss": "bin/sss.js"
