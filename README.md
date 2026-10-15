@@ -28,7 +28,7 @@ All paths below are relative to the selected scope root.
 | Antigravity IDE | `.gemini/config/skills` | `.gemini/config/mcp_config.json` | JSON |
 | Codex | `.agents/skills` | `.codex/config.toml` | TOML |
 
-The capability matrix, OS compatibility, and installation complexity come from `config/clients.yml`. Skill and MCP catalogue metadata lives in `catalogue/skills.yml` and `catalogue/mcp.yml`. These labels help users choose a target; they are not a dependency resolver or a runtime guarantee.
+The capability matrix, OS compatibility, and installation complexity come from `config/clients.yml`. At startup, SSS detects the current runtime OS and architecture and displays them as context. Skill and MCP catalogue metadata lives in `catalogue/skills.yml` and `catalogue/mcp.yml`. These labels help users choose a target; they are not a dependency resolver or a runtime guarantee.
 
 ## Install and usage
 

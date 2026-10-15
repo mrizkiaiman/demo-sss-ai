@@ -2,6 +2,7 @@
 import argparse
 import curses
 import os
+import platform
 import shutil
 import signal
 from pathlib import Path
@@ -45,6 +46,29 @@ BANNER = """
 """.strip('\n')
 
 
+def detect_runtime_label():
+    system = platform.system().lower()
+    release = platform.release().lower()
+    version = platform.version().lower()
+    if system == 'darwin':
+        os_label = 'macOS'
+    elif system == 'linux' and ('microsoft' in release or 'microsoft' in version):
+        os_label = 'Windows/WSL2'
+    elif system == 'linux':
+        os_label = 'Linux'
+    elif system == 'windows':
+        os_label = 'Windows'
+    else:
+        os_label = platform.system() or 'Unknown OS'
+    architecture = {
+        'aarch64': 'arm64',
+        'arm64': 'arm64',
+        'x86_64': 'x64',
+        'amd64': 'x64',
+    }.get(platform.machine().lower(), platform.machine() or 'unknown')
+    return f'{os_label} · {architecture}'
+
+
 def group_skills(catalogue):
     return [(group['name'], group['skills']) for group in catalogue['groups']]
 
@@ -85,7 +109,7 @@ def catalogue_labels(catalogue, names):
     }
 
 
-def choose_scope(screen):
+def choose_scope(screen, runtime_label):
     curses.curs_set(0)
     if curses.has_colors():
         curses.start_color()
@@ -118,6 +142,7 @@ def choose_scope(screen):
         if compact:
             draw_at(1, content_x, 'SSS', active_style)
             draw_at(1, content_x + 6, 'WORKSTATION SETUP', secondary | curses.A_BOLD)
+            draw_at(1, width - len(runtime_label) - 3, runtime_label, secondary | curses.A_BOLD)
             draw_at(3, content_x, 'Choose installation scope', curses.A_BOLD)
             draw_at(4, content_x, 'Select where native configuration files should be written.', muted)
             list_row = 6
@@ -125,6 +150,7 @@ def choose_scope(screen):
             for row, line in enumerate(BANNER.splitlines(), 1):
                 draw_at(row, content_x, line, muted)
             draw_at(8, content_x, 'WORKSTATION SETUP', active_style)
+            draw_at(8, width - len(runtime_label) - 3, runtime_label, secondary | curses.A_BOLD)
             draw_at(9, content_x, 'Native Skills + MCP configuration', muted)
             draw_at(11, content_x, 'Choose installation scope', curses.A_BOLD)
             draw_at(12, content_x, 'Select where native configuration files should be written.', muted)
@@ -153,13 +179,13 @@ def choose_scope(screen):
             return options[cursor][0]
 
 
-def resolve_scope_target(args, parser):
+def resolve_scope_target(args, parser, runtime_label):
     scope = args.scope
     if scope is None:
         if not (sys.stdin.isatty() and sys.stdout.isatty()):
             parser.error('Scope is required in non-interactive mode. Use --scope global or --scope project.')
         if os.environ.get('TERM', 'dumb') != 'dumb':
-            scope = curses.wrapper(choose_scope)
+            scope = curses.wrapper(choose_scope, runtime_label)
         else:
             print('Choose installation scope:')
             print('  1. project  Write native files below the current project root')
@@ -189,7 +215,7 @@ def resolve_scope_target(args, parser):
     return scope, target
 
 
-def checklist(screen, clients, title='clients to configure', labels=None, groups=None, allow_empty=False, required=None, initial_selected=None, back_label=None):
+def checklist(screen, clients, title='clients to configure', labels=None, groups=None, allow_empty=False, required=None, initial_selected=None, back_label=None, runtime_label=None):
     labels = LABELS if labels is None else labels
     required = set(required or [])
     curses.curs_set(0)
@@ -241,6 +267,8 @@ def checklist(screen, clients, title='clients to configure', labels=None, groups
         if compact:
             draw_at(1, content_x, 'SSS', active_style)
             draw_at(1, content_x + 6, 'WORKSTATION SETUP', secondary | curses.A_BOLD)
+            if runtime_label:
+                draw_at(1, width - len(runtime_label) - 3, runtime_label, secondary | curses.A_BOLD)
             draw_at(3, content_x, f'Select {title}', title_style)
             draw_at(4, content_x, 'Native Skills + MCP configuration', muted)
             list_row = 6
@@ -248,7 +276,8 @@ def checklist(screen, clients, title='clients to configure', labels=None, groups
             for row, line in enumerate(BANNER.splitlines(), 1):
                 draw_at(row, content_x, line, muted)
             draw_at(8, content_x, 'WORKSTATION SETUP', active_style)
-            draw_at(8, width - len(selected_count) - 4, selected_count.upper(), secondary | curses.A_BOLD)
+            header_context = '  ·  '.join(value for value in (runtime_label, selected_count.upper()) if value)
+            draw_at(8, width - len(header_context) - 4, header_context, secondary | curses.A_BOLD)
             draw_at(9, content_x, 'Native Skills + MCP configuration', muted)
             draw_at(11, content_x, f'Select {title}', title_style)
             draw_at(12, content_x, 'Choose what to configure. Space toggles; Enter continues.', muted)
@@ -386,11 +415,13 @@ def checklist(screen, clients, title='clients to configure', labels=None, groups
             message = 'Select at least one item to continue.'
 
 
-def select_options(clients, title, labels, groups=None, allow_empty=False, required=None, initial_selected=None, back_label=None):
+def select_options(clients, title, labels, groups=None, allow_empty=False, required=None, initial_selected=None, back_label=None, runtime_label=None):
     required = set(required or [])
     if sys.stdin.isatty() and sys.stdout.isatty() and os.environ.get('TERM', 'dumb') != 'dumb':
-        return curses.wrapper(checklist, clients, title, labels, groups, allow_empty, required, initial_selected, back_label)
+        return curses.wrapper(checklist, clients, title, labels, groups, allow_empty, required, initial_selected, back_label, runtime_label)
     initial_selected = set(initial_selected or []) | required
+    if runtime_label:
+        print(f'Runtime: {runtime_label}')
     empty_hint = ', '.join(client for client in clients if client in initial_selected) if initial_selected else 'none' if allow_empty else 'cancel'
     print(f'Select {title}. Enter numbers separated by commas or spaces, all, or q to cancel. Press Enter to select {empty_hint}.')
     number = 0
@@ -565,7 +596,8 @@ def main():
     if args.validate:
         print(f'Catalogues valid: {skill_count} Skills, {mcp_count} MCP servers, {len(client_config["client_skill_paths"])} clients.')
         return 0
-    scope, target_root = resolve_scope_target(args, parser)
+    runtime_label = detect_runtime_label()
+    scope, target_root = resolve_scope_target(args, parser, runtime_label)
     print(BANNER)
     print(f'\nSSS  /  Workstation configuration  /  {scope}\n')
     required_components = ['skills'] if required_skills else []
@@ -587,6 +619,7 @@ def main():
             component_options,
             required=required_components,
             initial_selected=components,
+            runtime_label=runtime_label,
         )
         if not components:
             print('Cancelled. No changes were made.')
