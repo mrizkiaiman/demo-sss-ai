@@ -89,6 +89,8 @@ class DeploymentPlan:
 
     def apply(self):
         for directory, mode in sorted(self.directories.items(), key=lambda item: len(item[0].parts)):
+            if directory.is_symlink() and not directory.exists():
+                directory = directory.resolve()
             if directory.exists():
                 if not directory.is_dir():
                     raise ValueError(f'Cannot create directory over a file: {directory}')

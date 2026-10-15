@@ -48,13 +48,53 @@ Internal implementation references: [Ansible README](../README.md), [Ansible set
 
 These alternatives are not incapable in general. The decision is based on the current PoC's target, existing implementation, onboarding requirements, and the behavior that must be demonstrated.
 
-## Decision and caveats
+## Opsi pengelolaan konfigurasi jarak jauh
 
-- **Decision for the PoC:** Keep Ansible as the apply engine for workstation skills and MCP settings. Use the existing Python launcher for selection and confirmation.
-- **Revisit Nix if:** the approved scope includes pinning/installing a common toolchain, managing broader shell and package state, or requiring generation-based environment rollback.
-- **Revisit chezmoi if:** the scope narrows to cross-platform dotfile distribution and the team prefers a tool centered on user configuration files.
-- **Do not present Ansible check mode as proof of runtime behavior.** It predicts supported task changes. Each selected AI client still needs an actual skill-load and MCP-connection check.
-- **Do not present either tool as an AI access-control boundary.** File permissions, network controls, and secret handling remain separate controls.
+Jika jumlah workstation developer bertambah dan tim perlu menerapkan konfigurasi SSS secara terpusat, Ansible dapat dievaluasi sebagai kemampuan operasional tahap berikutnya. Opsi ini belum diperlukan untuk PoC saat ini yang menargetkan workstation lokal, tetapi dapat menjadi jalur untuk memperluas workflow konfigurasi yang sama.
+
+- **Controller terpusat:** Workstation admin, CI runner, atau layanan otomasi dapat mengambil revision repository SSS yang sudah ditentukan, menyimpan inventory workstation, dan menjalankan playbook ke machine yang dipilih. Developer tidak perlu melakukan pull repository dan menerapkan konfigurasi secara manual.
+- **Operasi bersama:** Playbook yang sama dapat digunakan untuk onboarding, update rutin, dan perbaikan konfigurasi pada beberapa workstation. Group dalam inventory dapat menentukan konfigurasi yang diterapkan ke workstation atau tim tertentu.
+- **Pelaporan eksekusi:** Ansible melaporkan hasil task untuk setiap host. Callback plugin atau integrasi CI dapat menyimpan output dan mengidentifikasi workstation yang berhasil, berubah, tidak dapat dihubungi, atau gagal sehingga tim dapat menindaklanjuti pengecualian.
+- **Prasyarat:** Controller memerlukan koneksi jaringan, akses remote yang terautentikasi, izin sesuai prinsip least privilege, dan inventory yang selalu diperbarui. Credential serta variable sensitif harus disimpan di secret manager atau mekanisme terlindungi yang setara, bukan di dalam playbook.
+- **Pertimbangan operasional:** Tim perlu menentukan strategi rollout, retry, dan penanganan workstation yang sedang offline, serta melindungi controller, credential, dan log eksekusi. CLI atau CI runner sudah cukup untuk rollout awal; AWX atau Ansible Automation Platform dapat dievaluasi kemudian jika tim memerlukan UI, penjadwalan, role-based access, atau audit history terpusat.
+
+Penilaian terhadap kebutuhan saat ini menggunakan weighted decision matrix dengan skala 1–5:
+
+| Kriteria | Bobot | Ansible | Nix / NixOS + Colmena |
+|---|---:|---:|---:|
+| Biaya | 20% | 4 | 4 |
+| Keamanan | 25% | 4 | 4 |
+| Kemudahan instalasi | 20% | 5 | 2 |
+| Kesesuaian kebutuhan | 20% | 5 | 4 |
+| Pemeliharaan | 10% | 4 | 5 |
+| Kemudahan adopsi tim | 5% | 5 | 2 |
+| **Skor akhir** | **100%** | **4,45 / 5** | **3,60 / 5** |
+
+Skor ini menunjukkan bahwa Ansible lebih sesuai untuk kebutuhan saat ini: menerapkan file skills dan konfigurasi MCP ke workstation yang sudah ada, menjalankan onboarding atau update secara terpusat, serta mendukung kemungkinan environment yang heterogen. Nix tetap lebih menarik jika scope berkembang menjadi pengelolaan toolchain dan user environment Linux yang reproducible, deklaratif, serta memiliki rollback berbasis generation. Skor Nix di atas mengacu pada NixOS + Colmena, bukan sekadar instalasi Nix package manager di Ubuntu atau macOS.
+
+### Cara membaca perbandingan biaya
+
+Skor biaya tidak hanya membandingkan harga lisensi. Keduanya open source, sehingga biaya utama berasal dari instalasi awal, waktu belajar, infrastruktur controller atau build, dan effort pemeliharaan.
+
+- **Biaya awal Ansible lebih rendah:** Ansible dapat dipasang di satu controller tanpa mengganti sistem operasi workstation. Target biasanya hanya memerlukan koneksi remote, credential, dan Python atau runtime yang sesuai. Workstation yang sudah memakai Ubuntu, macOS, atau OS lain tetap dapat dipertahankan.
+- **Biaya awal Nix lebih tinggi:** Tim perlu memasang Nix dan menyiapkan flakes, module, serta Home Manager. Jika menggunakan NixOS, migrasi atau provisioning sistem menjadi bagian dari pekerjaan. Untuk deployment yang lebih besar, tim mungkin juga memerlukan binary cache atau CI untuk membangun konfigurasi secara konsisten.
+- **Biaya setelah stabil berbeda:** Ansible tetap memerlukan pemeliharaan inventory, credential, perbedaan antar-OS, dan playbook. Nix dapat mengurangi sebagian effort tersebut karena konfigurasi, package, dan dependency dideklarasikan dalam satu flake yang dapat direproduksi. Namun, Nix tetap memerlukan pemeliharaan flake, input yang di-lock, dan pemahaman khusus dari tim.
+
+Contoh untuk 10 workstation developer:
+
+- Dengan Ansible, controller menyimpan satu inventory dan playbook. Tim dapat menjalankan satu deployment untuk menyalin skills, memperbarui konfigurasi MCP, dan melakukan onboarding ke workstation yang sudah ada. Biaya terbesar setelahnya adalah menjaga inventory, akses remote, dan compatibility antar-OS.
+- Dengan Nix, tim perlu menyiapkan Nix atau NixOS, Home Manager, dan flake pada workstation tersebut terlebih dahulu. Setelah setup selesai, workstation baru dapat menggunakan deklarasi yang sama, dependency lebih konsisten, dan rollback generation tersedia. Manfaat ini lebih besar jika tim juga ingin mengelola package, shell, dan toolchain secara keseluruhan.
+- Jika scope hanya menyalin beberapa file skills dan menggabungkan konfigurasi MCP, tambahan layer Nix belum tentu menghemat biaya. Dalam scope tersebut, effort instalasi dan adopsi Nix dapat lebih besar daripada effort pemeliharaan playbook Ansible.
+
+Jadi, pernyataan bahwa Ansible lebih murah untuk mulai berarti **barrier awal dan perubahan pada workstation lebih kecil**, bukan berarti Ansible selalu memiliki total biaya terendah. Nix dapat menjadi lebih efisien setelah platformnya stabil dan scope membutuhkan reproducibility penuh, tetapi tidak otomatis lebih murah untuk workflow konfigurasi file yang sederhana.
+
+## Keputusan dan catatan
+
+- **Keputusan PoC:** Tetap gunakan Ansible sebagai apply engine untuk skills workstation dan pengaturan MCP. Python launcher yang ada tetap digunakan untuk pemilihan dan konfirmasi.
+- **Tahap berikutnya:** Evaluasi remote configuration management jika jumlah workstation bertambah atau tim membutuhkan onboarding, update, dan remediation dari satu controller.
+- **Evaluasi ulang Nix:** Pertimbangkan Nix jika scope yang disetujui mencakup pinning atau instalasi toolchain bersama, pengelolaan shell dan package state yang lebih luas, atau kebutuhan rollback user environment berbasis generation.
+- **Batasan check mode:** Jangan menganggap Ansible check mode sebagai bukti perilaku runtime. Mode ini memprediksi perubahan untuk task yang didukung. Setiap AI client yang dipilih tetap memerlukan pemeriksaan aktual untuk skill load dan koneksi MCP.
+- **Batasan keamanan:** Jangan menganggap Ansible atau Nix sebagai access-control boundary untuk AI. File permission, network control, dan secret handling tetap harus dikelola sebagai kontrol terpisah.
 
 ## Sources
 

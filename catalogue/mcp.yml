@@ -8,5 +8,3 @@ mcp_servers:
     url: https://mcp.sentry.dev/mcp
   jira:
     url: https://mcp.atlassian.com/v2/mcp
-  gitlab:
-    url: https://gitlab.com/api/v4/mcp

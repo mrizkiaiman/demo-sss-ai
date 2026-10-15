@@ -9,11 +9,10 @@ skill_catalogue:
       skills:
         - code-review
         - security-review
-        - grilling
-        - handoff
         - improve-codebase-architecture
         - ui-ux-pro-max
     - name: Productivity
-      description: Research, learning, and planning workflows.
+      description: Decision-making, work handoff, and productivity workflows.
       skills:
-        - teach
+        - grilling
+        - handoff
