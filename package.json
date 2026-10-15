@@ -1,7 +1,24 @@
 {
   "name": "sss-ai-cli",
+  "version": "0.1.0",
   "private": true,
+  "description": "Thin native Skills and MCP launcher for developer AI clients",
+  "bin": {
+    "sss": "bin/sss.js"
+  },
+  "files": [
+    "bin/",
+    "cli/",
+    "config/",
+    "catalogue/",
+    "templates/",
+    "skills/",
+    "requirements.txt",
+    "README.md",
+    "SECURITY.md",
+    "LICENSE"
+  ],
   "scripts": {
-    "setup": "python3 -m venv .venv && .venv/bin/python -m pip install -r requirements.txt && .venv/bin/python -m cli"
+    "setup": "python3 -m venv .venv && .venv/bin/python -m pip install -r requirements.txt && .venv/bin/python -m cli --scope global"
   }
 }

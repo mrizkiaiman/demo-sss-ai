@@ -11,3 +11,47 @@ mcp_client_paths:
   opencode: .config/opencode/opencode.json
   antigravity: .gemini/config/mcp_config.json
   codex: .codex/config.toml
+
+client_capabilities:
+  kiro:
+    skills: {global: true, project: true}
+    mcp: {global: true, project: true}
+    mcp_format: json
+  claude:
+    skills: {global: true, project: true}
+    mcp: {global: true, project: true}
+    mcp_format: json
+  opencode:
+    skills: {global: true, project: true}
+    mcp: {global: true, project: true}
+    mcp_format: json5
+  antigravity:
+    skills: {global: true, project: true}
+    mcp: {global: true, project: true}
+    mcp_format: json
+  codex:
+    skills: {global: true, project: true}
+    mcp: {global: true, project: true}
+    mcp_format: toml
+
+client_metadata:
+  kiro:
+    os_compatibility: [macos, linux, windows-wsl2]
+    complexity: low
+    note: Native Skills and MCP files are written below the selected root.
+  claude:
+    os_compatibility: [macos, linux, windows-wsl2]
+    complexity: low
+    note: Native Skills and MCP files are written below the selected root.
+  opencode:
+    os_compatibility: [macos, linux, windows-wsl2]
+    complexity: medium
+    note: Uses native JSONC when an existing opencode.jsonc is present.
+  antigravity:
+    os_compatibility: [macos, linux, windows-wsl2]
+    complexity: medium
+    note: Native Gemini configuration files are written below the selected root.
+  codex:
+    os_compatibility: [macos, linux, windows-wsl2]
+    complexity: medium
+    note: MCP configuration is rendered as native TOML.

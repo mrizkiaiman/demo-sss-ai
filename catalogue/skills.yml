@@ -3,6 +3,10 @@ skill_catalogue:
   required_skills:
     - code-review
     - security-review
+  presentation:
+    os_compatibility: [macos, linux, windows-wsl2]
+    installation_complexity: low
+    note: Copies the selected public Skill package into each client's native directory.
   groups:
     - name: Development
       description: Development workflows, engineering standards, and implementation tools.

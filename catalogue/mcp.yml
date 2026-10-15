@@ -1,4 +1,23 @@
 ---
+presentation:
+  os_compatibility: [macos, linux, windows-wsl2]
+  installation_complexity: low
+  note: Adds the selected server to each client's native configuration file.
+
+metadata:
+  codebase-memory-mcp:
+    os_compatibility: [macos, linux, windows-wsl2]
+    installation_complexity: medium
+    note: Requires Node.js and uses the pinned npx package fallback when no native binary exists.
+  sentry:
+    os_compatibility: [macos, linux, windows-wsl2]
+    installation_complexity: medium
+    note: Requires network access and completes OAuth in the client after installation.
+  jira:
+    os_compatibility: [macos, linux, windows-wsl2]
+    installation_complexity: medium
+    note: Requires network access and completes OAuth in the client after installation.
+
 mcp_servers:
   codebase-memory-mcp:
     command: npx
