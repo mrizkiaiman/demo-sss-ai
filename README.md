@@ -1,26 +1,121 @@
 # SSS
 
-SSS is a thin launcher/installer for developers. It selects and installs **Skills** and **MCP** configuration using each AI client's native syntax. SSS is not a runtime orchestrator, policy proxy, or replacement for an AI client.
+Install native **Skills**, **MCP servers**, and project AI instructions for developer AI clients.
 
-The primary use case is developers. QA is supported as an additional use case through selected Skills.
+SSS writes client configuration files. It does not run MCP servers, manage credentials, or enforce runtime security.
 
-## MVP contract
+## Start here
 
-- Users select clients, Skills, and MCP servers through the existing menu.
-- Installation scope is `global` or `project`.
-- Project-level installation writes below the selected project root, not `$HOME`.
-- If scope is omitted during an interactive session, SSS asks the user. Non-interactive sessions must use `--scope global` or `--scope project`.
-- SSS does not create `.sss`, `sss.yml`, or `sss.lock`.
-- Existing configuration is not overwritten by default. Conflicts are skipped and shown in the preview.
-- `--update` and `--force` allow replacement of selected items, while still using preview, confirmation, backups, and atomic writes.
-- The five existing clients remain available and are shown with the capability matrix.
-- OS is shown as a compatibility label. OS is not used as a large installation-folder category.
+Run this from the project you want to configure:
 
-## Native destinations
+```bash
+cd /path/to/your/project
+npx sss-ai-cli setup
+```
 
-All paths below are relative to the selected scope root.
+Then:
 
-| Client | Skills | MCP | MCP format |
+1. Choose `Project` to configure the current project, or `Global` to configure your home directory.
+2. Select `Skills`, `MCP servers`, and optional project `AI guardrails`.
+3. Select the AI client(s) to configure.
+4. Select the Skills and MCP servers.
+5. Review the preview.
+6. Confirm the changes.
+
+`npx sss-ai-cli setup` is the recommended entrypoint. It opens the interactive menu and keeps the setup flow in one place.
+
+![Project and global scope selection](docs/images/setup-scope.png)
+
+*Choose where SSS should write native configuration files.*
+
+## Requirements
+
+You need:
+
+- Python 3.9 or newer.
+- Node.js and npm.
+- Git for local development and Skills that inspect repository history.
+
+The npm package includes its Python dependencies. You do not need a virtual environment or `pip install` for normal `npx` usage.
+
+### Check your installation
+
+```bash
+python3 --version
+node --version
+npm --version
+```
+
+### Install on macOS
+
+With Homebrew:
+
+```bash
+brew install python node
+```
+
+If Homebrew is not installed, use the official [Python installer](https://www.python.org/downloads/) and [Node.js LTS installer](https://nodejs.org/en/download).
+
+### Install on Ubuntu or WSL2
+
+```bash
+sudo apt update
+sudo apt install -y python3 python3-venv nodejs npm git
+```
+
+### Install on Windows
+
+Install Python 3, Node.js LTS, and Git from their official installers. WSL2 users can follow the Ubuntu steps above.
+
+## Preview before applying
+
+To preview project changes without writing files:
+
+```bash
+npx sss-ai-cli setup --check
+```
+
+For an explicit non-interactive scope:
+
+```bash
+npx sss-ai-cli --scope project --project-root "$PWD" --check
+```
+
+`--check` never writes files.
+
+![Change recap preview](docs/images/change-recap.png)
+
+*Review the selected clients, Skills, MCP servers, and planned changes before applying.*
+
+## Apply changes directly
+
+Project scope:
+
+```bash
+npx sss-ai-cli --scope project --project-root "$PWD"
+```
+
+Global scope:
+
+```bash
+npx sss-ai-cli --scope global
+```
+
+Without `--project-root`, project scope uses the current working directory. SSS does not automatically switch to the Git root.
+
+## Update existing configuration
+
+Existing Skills and MCP entries are skipped by default. To replace selected entries:
+
+```bash
+npx sss-ai-cli --scope project --project-root "$PWD" --update
+```
+
+`--force` is an alias for `--update`. Replaced files receive timestamped backups.
+
+## Supported clients
+
+| Client | Skills path | MCP config | Format |
 | --- | --- | --- | --- |
 | Kiro | `.kiro/skills` | `.kiro/settings/mcp.json` | JSON |
 | Claude Code | `.claude/skills` | `.claude.json` | JSON |
@@ -28,112 +123,89 @@ All paths below are relative to the selected scope root.
 | Antigravity IDE | `.gemini/config/skills` | `.gemini/config/mcp_config.json` | JSON |
 | Codex | `.agents/skills` | `.codex/config.toml` | TOML |
 
-The capability matrix, OS compatibility, and installation complexity come from `config/clients.yml`. At startup, SSS detects the current runtime OS and architecture and displays them as context. Skill and MCP catalogue metadata lives in `catalogue/skills.yml` and `catalogue/mcp.yml`. These labels help users choose a target; they are not a dependency resolver or a runtime guarantee.
+Paths are relative to the selected scope root.
 
-## Install and usage
+## Skills
 
-Requirements: Python 3.9+, Git, and Node.js/npm when using the `codebase-memory-mcp` fallback through `npx`.
+Skills are copied into each selected client's native Skills directory.
 
-The legacy bootstrap remains global:
+`code-review` and `security-review` are currently mandatory when Skills are selected. Other Skills are optional.
 
-```bash
-npm run setup
-```
+The Skill picker shows a short purpose. Press `Tab` on a Skill to view its purpose, usage, file scope, behavior, supported platforms, and availability.
 
-This script creates `.venv`, installs `requirements.txt`, and runs the Python CLI with `--scope global`. The global behavior of `npm run setup` is unchanged.
+![Skill picker](docs/images/skill-picker.png)
 
-For project-level installation:
+*Select Skills from the compact picker.*
 
-```bash
-.venv/bin/python -m cli --scope project --project-root /absolute/path/to/project --check
-.venv/bin/python -m cli --scope project --project-root /absolute/path/to/project
-```
+![Skill details](docs/images/skill-details.png)
 
-Without `--project-root`, project scope uses the current working directory. SSS does not detect or switch to the Git root automatically. For a custom global home, use the legacy behavior:
+*Press `Tab` to inspect the highlighted Skill before selecting it.*
 
-```bash
-.venv/bin/python -m cli --scope global --target-home /absolute/home/path --check
-```
+## MCP servers
 
-The public npm package provides the `npx` entrypoint and bundles its Python dependencies. No project `.venv`, cached venv, or `pip install` step is required.
+- `codebase-memory-mcp` runs as a local process through `npx`.
+- Sentry and Jira entries use remote MCP URLs from `catalogue/mcp.yml`.
+- SSS writes MCP configuration but does not authenticate, start, or verify provider connectivity.
+- Self-hosted MCP endpoints must be configured for the target environment. Do not put credentials in the catalogue.
 
-From any project root:
-
-```bash
-npx sss-ai-cli --scope project --project-root /absolute/path/to/project --check
-npx sss-ai-cli --scope project --project-root /absolute/path/to/project
-```
-
-`npx sss-ai-cli setup` remains a compatibility alias for launching the interactive menu. The wrapper keeps the caller's working directory as the project context and requires only a system Python 3 executable. `SSS_PYTHON` can override the Python executable when needed.
-
-## Setup flow
-
-1. Select one or more components: `Skills`, `MCP servers`, and optionally `AI guardrails` in project scope.
-2. If Skills or MCP servers are selected, choose one or more of the five clients.
-3. Select the required catalogue items. `code-review` and `security-review` remain mandatory.
-4. Review the scope, target root, native paths, compatibility labels, complexity, and conflict warnings.
-5. Run `--check` for a preview without writing, or confirm the apply operation.
+Press `Tab` on an MCP server to view its connection, data, login, network, and change details.
 
 ## AI guardrails
 
-The optional `AI guardrails` component creates `AGENTS.md` in the selected project root. Guardrails are available only with `--scope project`; SSS does not create a global `AGENTS.md` automatically because its instructions could affect every project.
+Project scope can create `AGENTS.md` in the selected project root.
 
-The component follows the same file rules as other managed outputs:
+`AGENTS.md` is an instruction contract for compatible AI clients. It is not a sandbox, access-control system, or runtime security policy.
 
-- An existing `AGENTS.md` is skipped by default and shown as a conflict.
-- `--update` or `--force` replaces the file only after preview and confirmation, with a timestamped backup.
-- The template contains `MUST` rules, sensitive-file reminders, examples of destructive commands that require confirmation, and a change protocol.
-- The template intentionally does not add a separate MCP policy section.
+SSS does not create a global `AGENTS.md` automatically.
 
-`AGENTS.md` is an instruction contract for compatible AI clients, not runtime security enforcement. It does not replace a sandbox, permissions, approval hooks, network policy, or human review.
-
-The canonical template is `templates/AGENTS.md`.
-
-## Conflict behavior
-
-- A Skill directory with the same name is skipped entirely by default, so existing files are not touched.
-- An MCP server with the same name in the native section is skipped, while new servers can still be added.
-- `--update` or `--force` replaces only selected Skill/MCP items and creates a timestamped backup for existing files.
-- Other entries and files remain unchanged.
-- A malformed config stops the merge before the target file is replaced.
-
-File-level MVP hardening includes relative-path validation, confinement to the target root, symlink-escape protection, preview, confirmation, conflict handling, backups, permissions, temporary-file `fsync`, and atomic `os.replace`.
-
-## Commands
+## Useful commands
 
 ```bash
-# Global setup with the menu
-npm run setup
-
-# Project-level preview
-.venv/bin/python -m cli --scope project --project-root /absolute/path/to/project --check
-
-# Allow replacement after preview and confirmation
-.venv/bin/python -m cli --scope project --project-root /absolute/path/to/project --update
-
-# --force is an alias for --update
-.venv/bin/python -m cli --scope global --force --verbose
-
-# Validate catalogues and public Skill packages
-.venv/bin/python -m cli --validate
+# Validate bundled catalogues and Skills
+npx sss-ai-cli --validate
 
 # Show all options
+npx sss-ai-cli --help
+```
+
+If the npm wrapper cannot find Python, set `SSS_PYTHON`:
+
+```bash
+SSS_PYTHON=/path/to/python3 npx sss-ai-cli setup
+```
+
+## Optional: source development
+
+This section is only for contributors working from a repository checkout. Normal users can skip it.
+
+```bash
+python3 -m venv .venv
+.venv/bin/python -m pip install -r requirements.txt
+.venv/bin/python -m unittest discover -s tests -v
+.venv/bin/python -m cli --validate
 .venv/bin/python -m cli --help
 ```
 
-## Security boundary
+The legacy global bootstrap is also available from the repository:
 
-SSS does not redact email addresses or tokens before requests reach an AI client, install a local security bridge, analyze repository contents for automatic recommendations, or provide runtime interception, a policy proxy, or a daemon. Client ignore files and permissions can reduce accidental exposure, but they do not guarantee that an AI client cannot access sensitive data through a shell, MCP server, another client, or a direct network request.
+```bash
+npm run setup
+```
 
-## Repository structure
+## Safety and security
+
+SSS protects local installation with path confinement, symlink checks, previews, conflict handling, backups, restricted permissions, `fsync`, and atomic replacement.
+
+SSS does not provide a sandbox, MCP proxy, network policy, secret redaction, model routing, or runtime enforcement. See [`SECURITY.md`](SECURITY.md) for the full security boundary.
+
+## Repository layout
 
 ```text
-catalogue/          Skills and MCP catalogues
-config/             Native paths, capability matrix, and client metadata
-skills/             Public Skill packages
-cli/                Python engine, selector, merge, and deployment plan
-bin/sss.js          npm/npx entrypoint
-package.json        npm wrapper and package allowlist
-SECURITY.md         Hardening boundaries and enforcement limits
-templates/          Generated project instruction templates
+catalogue/   Skill and MCP catalogues
+config/      Client paths and capabilities
+skills/      Bundled Skill packages
+cli/         Python CLI and deployment engine
+bin/sss.js   npm/npx entrypoint
+templates/   Generated project instruction templates
+tests/       Automated checks
 ```
