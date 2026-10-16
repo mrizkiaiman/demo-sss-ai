@@ -9,16 +9,13 @@ from pathlib import Path
 import sys
 import textwrap
 
-import yaml
-
-from .deploy import (
-    build_plan,
-    catalogue_metadata,
-    resolve_mcp_servers,
-    validate_catalogues,
-    validate_scope_capabilities,
-    validate_skills,
+from .application.install_plan import (
+    InstallationRequest,
+    build_installation_plan,
+    load_catalogues,
+    validate_installation_catalogues,
 )
+from .deploy import catalogue_metadata
 
 ROOT = Path(__file__).resolve().parents[1]
 LABELS = {
@@ -582,19 +579,18 @@ def main():
     parser.add_argument('--force', action='store_true', help='Alias for --update; still previews, backs up, and asks for confirmation.')
     args = parser.parse_args()
     try:
-        client_config = yaml.safe_load((ROOT / 'config/clients.yml').read_text(encoding='utf-8'))
-        skill_data = yaml.safe_load((ROOT / 'catalogue/skills.yml').read_text(encoding='utf-8'))
-        skill_catalogue = skill_data.get('skill_catalogue') if isinstance(skill_data, dict) else None
-        mcp_catalogue = yaml.safe_load((ROOT / 'catalogue/mcp.yml').read_text(encoding='utf-8'))
-    except (OSError, yaml.YAMLError) as error:
-        parser.error(f'Cannot load project configuration: {error}')
-    try:
-        skill_count, mcp_count = validate_catalogues(ROOT, skill_catalogue, mcp_catalogue, client_config)
-        required_skills = skill_catalogue.get('required_skills', [])
-    except (OSError, ValueError, KeyError, TypeError, yaml.YAMLError) as error:
+        catalogues = load_catalogues(ROOT)
+        catalogue_summary = validate_installation_catalogues(ROOT, catalogues)
+    except (OSError, ValueError, KeyError, TypeError) as error:
         parser.error(str(error))
+    client_config = catalogues.client_config
+    skill_catalogue = catalogues.skill_catalogue
+    mcp_catalogue = catalogues.mcp_catalogue
+    skill_count = catalogue_summary.skill_count
+    mcp_count = catalogue_summary.mcp_count
+    required_skills = skill_catalogue.get('required_skills', [])
     if args.validate:
-        print(f'Catalogues valid: {skill_count} Skills, {mcp_count} MCP servers, {len(client_config["client_skill_paths"])} clients.')
+        print(f'Catalogues valid: {skill_count} Skills, {mcp_count} MCP servers, {catalogue_summary.client_count} clients.')
         return 0
     runtime_label = detect_runtime_label()
     scope, target_root = resolve_scope_target(args, parser, runtime_label)
@@ -700,22 +696,21 @@ def main():
             if selection_complete:
                 break
     try:
-        validate_scope_capabilities(scope, components, clients, client_config)
-        servers = resolve_mcp_servers(selected_mcp, mcp_catalogue)
-        plan = build_plan(
-            ROOT,
-            target_root,
-            components,
-            clients,
-            skills,
-            skill_catalogue,
-            servers,
-            client_config,
-            allow_updates=args.update or args.force,
+        request = InstallationRequest(
+            root=ROOT,
+            target_root=target_root,
             scope=scope,
+            components=tuple(components),
+            clients=tuple(clients),
+            skills=tuple(skills),
+            mcp_servers=tuple(selected_mcp),
+            allow_updates=args.update or args.force,
         )
+        installation = build_installation_plan(request, catalogues)
+        plan = installation.deployment
+        servers = installation.servers
         changes = plan.planned_changes()
-    except (OSError, ValueError, KeyError, TypeError, yaml.YAMLError) as error:
+    except (OSError, ValueError, KeyError, TypeError) as error:
         parser.error(str(error))
     print('\nInstallation targets:')
     for client in clients:
