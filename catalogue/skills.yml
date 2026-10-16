@@ -7,6 +7,61 @@ skill_catalogue:
     os_compatibility: [macos, linux, windows-wsl2]
     installation_complexity: low
     note: Copies the selected public Skill package into each client's native directory.
+  metadata:
+    code-review:
+      os_compatibility: [macos, linux, windows-wsl2]
+      installation_complexity: low
+      purpose: Find concrete defects in changed code
+      use_when: Reviewing a diff, branch, commit, or pull request
+      reads: Changed files and related code
+      changes: Does not modify files
+      interaction: Runs when requested
+      note: Reports introduced, actionable defects with evidence and severity.
+    security-review:
+      os_compatibility: [macos, linux, windows-wsl2]
+      installation_complexity: low
+      purpose: Find high-confidence security vulnerabilities
+      use_when: Reviewing code for security issues
+      reads: Requested code and related project context
+      changes: Does not modify files
+      interaction: Runs when requested
+      note: Reports exploitable findings only after researching the relevant code paths.
+    improve-codebase-architecture:
+      os_compatibility: [macos, linux, windows-wsl2]
+      installation_complexity: medium
+      purpose: Find opportunities to improve codebase architecture
+      use_when: Evaluating architecture or module boundaries
+      reads: Project structure, code, and git history
+      changes: Creates a temporary report, not repository files
+      interaction: Asks which opportunity to explore
+      note: Produces a visual report and guides the user through the selected opportunity.
+    ui-ux-pro-max:
+      os_compatibility: [macos, linux, windows-wsl2]
+      installation_complexity: medium
+      purpose: Improve interface design and usability
+      use_when: Designing, reviewing, or changing UI
+      reads: UI code and local design references
+      changes: Depends on the requested task
+      interaction: Runs when requested
+      note: Provides design, accessibility, interaction, and responsive UI guidance.
+    grilling:
+      os_compatibility: [macos, linux, windows-wsl2]
+      installation_complexity: low
+      purpose: Gather and clarify requirements before implementation
+      use_when: Requirements, scope, or acceptance criteria are unclear
+      reads: Conversation context
+      changes: Does not modify files
+      interaction: Asks questions before planning
+      note: Uses structured questions to reach a shared understanding before work begins.
+    handoff:
+      os_compatibility: [macos, linux, windows-wsl2]
+      installation_complexity: low
+      purpose: Summarize work for another session or agent
+      use_when: Handing work to another agent or session
+      reads: Conversation context and current work
+      changes: Does not modify files
+      interaction: Runs when requested
+      note: Produces a concise handoff without creating a repository file.
   groups:
     - name: Development
       description: Development workflows, engineering standards, and implementation tools.
@@ -16,7 +71,7 @@ skill_catalogue:
         - improve-codebase-architecture
         - ui-ux-pro-max
     - name: Productivity
-      description: Decision-making, work handoff, and productivity workflows.
+      description: Decision-making, handoff, and requirements workflows.
       skills:
         - grilling
         - handoff

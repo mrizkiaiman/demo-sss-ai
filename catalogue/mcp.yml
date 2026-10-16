@@ -8,15 +8,33 @@ metadata:
   codebase-memory-mcp:
     os_compatibility: [macos, linux, windows-wsl2]
     installation_complexity: medium
-    note: Requires Node.js and uses the pinned npx package fallback when no native binary exists.
+    transport: local-process
+    network: package-download
+    auth: none
+    data_access: repository
+    data_label: Your project files
+    side_effects: local-index
+    note: Runs locally and may download the pinned package during setup.
   sentry:
     os_compatibility: [macos, linux, windows-wsl2]
     installation_complexity: medium
-    note: Requires network access and completes OAuth in the client after installation.
+    transport: remote-https
+    network: outbound
+    auth: oauth
+    data_access: external-project
+    data_label: Your Sentry project data
+    side_effects: provider-defined
+    note: Connects to Sentry and completes OAuth in the client after installation.
   jira:
     os_compatibility: [macos, linux, windows-wsl2]
     installation_complexity: medium
-    note: Requires network access and completes OAuth in the client after installation.
+    transport: remote-https
+    network: outbound
+    auth: oauth
+    data_access: external-project
+    data_label: Your Jira project data
+    side_effects: provider-defined
+    note: Connects to Jira and completes OAuth in the client after installation.
 
 mcp_servers:
   codebase-memory-mcp:

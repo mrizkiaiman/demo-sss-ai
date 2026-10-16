@@ -70,13 +70,124 @@ def group_skills(catalogue):
     return [(group['name'], group['skills']) for group in catalogue['groups']]
 
 
+MCP_DISPLAY_LABELS = {
+    'transport': {
+        'local-process': 'Runs on this computer',
+        'remote-https': 'Connects to a cloud service',
+    },
+    'network': {
+        'package-download': 'May download the package during setup',
+        'outbound': 'Uses the internet',
+        'none': 'No internet connection',
+    },
+    'auth': {
+        'none': 'No login required',
+        'oauth': 'Login required',
+        'api-key': 'API key required',
+    },
+    'data_access': {
+        'repository': 'Your project files',
+        'external-project': 'Connected service data',
+        'none': 'Does not read project data',
+    },
+    'side_effects': {
+        'local-index': 'Creates a local search index',
+        'provider-defined': 'Changes depend on your account permissions',
+        'none': 'Does not change data',
+    },
+}
+
+
+def mcp_metadata_lines(metadata):
+    lines = []
+    prefixes = {
+        'transport': '',
+        'data_access': 'Data: ',
+        'auth': 'Login: ',
+        'network': 'Internet: ',
+        'side_effects': 'Changes: ',
+    }
+    for field in ('transport', 'data_access', 'auth', 'network', 'side_effects'):
+        value = metadata.get(field)
+        if field == 'data_access' and isinstance(metadata.get('data_label'), str) and metadata['data_label'].strip():
+            label = metadata['data_label'].strip()
+        else:
+            label = MCP_DISPLAY_LABELS.get(field, {}).get(value)
+        if label:
+            lines.append(f'{prefixes[field]}{label}')
+    complexity = metadata.get('installation_complexity')
+    if complexity:
+        lines.append(f'Setup: {str(complexity).lower()}')
+    return lines or ['MCP details not specified']
+
+
+def mcp_metadata_summary(metadata):
+    return ' · '.join(mcp_metadata_lines(metadata))
+
+
+def mcp_metadata_compact_summary(metadata):
+    return ' · '.join(detail for detail in mcp_metadata_lines(metadata) if not detail.startswith('Setup: '))
+
+
+def _supported_os_label(metadata):
+    os_labels = {'macos': 'macOS', 'linux': 'Linux', 'windows-wsl2': 'Windows/WSL2'}
+    systems = metadata.get('os_compatibility', ['unknown'])
+    return ' · '.join(os_labels.get(system, system) for system in systems)
+
+
+def skill_metadata_lines(metadata, availability='Optional'):
+    lines = []
+    fields = (
+        ('purpose', 'Purpose'),
+        ('use_when', 'Use when'),
+        ('reads', 'Reads'),
+        ('changes', 'Changes'),
+        ('interaction', 'Interaction'),
+    )
+    for field, label in fields:
+        value = metadata.get(field)
+        if isinstance(value, str) and value.strip():
+            lines.append(f'{label}: {value.strip()}')
+    if metadata.get('os_compatibility'):
+        lines.append(f'Supported on: {_supported_os_label(metadata)}')
+    if availability:
+        lines.append(availability)
+    return lines or ['Skill details not specified']
+
+
+def skill_metadata_summary(metadata):
+    return ' · '.join(skill_metadata_lines(metadata))
+
+
+def skill_detail_availability(catalogue, name):
+    required = set(catalogue.get('required_skills', [])) if isinstance(catalogue, dict) else set()
+    return None if name in required else 'Optional'
+
+
+def detail_selection_status(name, selected, required, detail_rows):
+    state = 'selected' if name in selected else 'not selected'
+    if name in required:
+        return f'Mandatory · {state}'
+    if any(row.startswith('Purpose: ') for row in detail_rows):
+        return f'Optional · {state}'
+    return state.capitalize()
+
+
 def metadata_summary(metadata, complexity_key='installation_complexity'):
+    if metadata.get('transport'):
+        return mcp_metadata_summary(metadata)
+    if metadata.get('purpose'):
+        return skill_metadata_summary(metadata)
     systems = ', '.join(metadata.get('os_compatibility', ['unknown']))
     complexity = metadata.get(complexity_key, 'not specified')
     return f'OS: {systems}; complexity: {complexity}'
 
 
 def _compact_metadata_label(metadata):
+    if metadata.get('transport'):
+        return mcp_metadata_compact_summary(metadata)
+    if metadata.get('purpose'):
+        return metadata['purpose'].strip()
     os_labels = {'macos': 'macOS', 'linux': 'Linux', 'windows-wsl2': 'Windows/WSL2'}
     systems = ' · '.join(os_labels.get(system, system) for system in metadata.get('os_compatibility', ['unknown']))
     complexity = metadata.get('installation_complexity', metadata.get('complexity', 'not specified'))
@@ -104,6 +215,19 @@ def catalogue_labels(catalogue, names):
         name: f'{name}  ·  {_compact_metadata_label(catalogue_metadata(catalogue, name))}'
         for name in names
     }
+
+
+def catalogue_detail_labels(catalogue, names):
+    details = {}
+    for name in names:
+        metadata = catalogue_metadata(catalogue, name)
+        if metadata.get('transport'):
+            details[name] = mcp_metadata_lines(metadata)
+        elif metadata.get('purpose'):
+            details[name] = skill_metadata_lines(metadata, availability=None)
+        else:
+            details[name] = []
+    return details
 
 
 def choose_scope(screen, runtime_label):
@@ -212,8 +336,9 @@ def resolve_scope_target(args, parser, runtime_label):
     return scope, target
 
 
-def checklist(screen, clients, title='clients to configure', labels=None, groups=None, allow_empty=False, required=None, initial_selected=None, back_label=None, runtime_label=None):
+def checklist(screen, clients, title='clients to configure', labels=None, groups=None, allow_empty=False, required=None, initial_selected=None, back_label=None, runtime_label=None, details=None):
     labels = LABELS if labels is None else labels
+    details = details or {}
     required = set(required or [])
     curses.curs_set(0)
     if curses.has_colors():
@@ -223,11 +348,53 @@ def checklist(screen, clients, title='clients to configure', labels=None, groups
         curses.init_pair(2, curses.COLOR_CYAN, -1)
         curses.init_pair(3, curses.COLOR_GREEN, -1)
         curses.init_pair(4, curses.COLOR_YELLOW, -1)
+        curses.init_pair(5, curses.COLOR_WHITE, -1)
     selected = set(required) | (set(initial_selected or []) & set(clients))
     cursor = 0
     message = ''
     offset = 0
     collapsed = set()
+
+    def show_details(name):
+        detail_rows = details.get(name) or ['No additional details available.']
+        while True:
+            screen.erase()
+            height, width = screen.getmaxyx()
+            title_style = curses.color_pair(1) | curses.A_BOLD if curses.has_colors() else curses.A_BOLD
+            muted = curses.A_DIM
+            body_style = curses.color_pair(5) if curses.has_colors() else curses.A_NORMAL
+            label_style = body_style | curses.A_BOLD
+            screen.addnstr(1, 2, f'DETAILS · {name}', max(0, width - 4), title_style)
+            status = detail_selection_status(name, selected, required, detail_rows)
+            screen.addnstr(3, 2, status, max(0, width - 4), muted)
+            row = 5
+            content_width = max(20, width - 6)
+            for detail in detail_rows:
+                wrapped = textwrap.wrap(detail, max(16, content_width - 2), break_on_hyphens=False) or ['']
+                for line_number, part in enumerate(wrapped):
+                    if row >= height - 4:
+                        break
+                    prefix = '• ' if line_number == 0 else '  '
+                    if line_number == 0 and ': ' in part:
+                        label, value = part.split(': ', 1)
+                        label_text = prefix + label + ':'
+                        screen.addnstr(row, 3, label_text, content_width, label_style)
+                        value_column = 3 + len(label_text)
+                        value_width = width - value_column - 1
+                        if value_width > 0:
+                            screen.addnstr(row, value_column, ' ' + value, value_width, body_style)
+                    else:
+                        screen.addnstr(row, 3, prefix + part, content_width, body_style)
+                    row += 1
+                if row >= height - 4:
+                    break
+            footer = 'Tab / Esc / Enter back'
+            screen.addnstr(height - 3, 2, footer, max(0, width - 4), muted)
+            screen.refresh()
+            detail_key = screen.getch()
+            if detail_key in (9, 27, 10, 13, curses.KEY_ENTER):
+                return
+
     while True:
         rows = []
         if groups is None:
@@ -368,6 +535,8 @@ def checklist(screen, clients, title='clients to configure', labels=None, groups
             controls = '↑↓ move   Space select   Enter continue   q quit'
             if back_label:
                 controls = controls.replace('   q quit', '   b back   q quit')
+        if details and width >= 60:
+            controls += '   Tab details'
         draw_at(height - 3, 2, controls, muted)
         status = message or (f'Rows {offset + 1}–{end} of {len(rows)}' if len(rows) > visible else '')
         draw_at(height - 2, 2, status, warning if message else secondary)
@@ -404,6 +573,16 @@ def checklist(screen, clients, title='clients to configure', labels=None, groups
             members = rows[cursor - 1][1]
             index = next(number for number, group in enumerate(groups) if group[1] is members)
             collapsed.add(index) if key == curses.KEY_LEFT else collapsed.discard(index)
+        elif key in (9, getattr(curses, 'KEY_BTAB', -1)):
+            if 0 < cursor <= len(rows):
+                name, _, is_group = rows[cursor - 1]
+                if not is_group and name in details:
+                    show_details(name)
+                    message = ''
+                else:
+                    message = 'Select a Skill or MCP item to view details.'
+            else:
+                message = 'Select a Skill or MCP item to view details.'
         elif key in (10, 13, curses.KEY_ENTER):
             if back_label and cursor == len(rows) + 1:
                 return BACK
@@ -412,10 +591,10 @@ def checklist(screen, clients, title='clients to configure', labels=None, groups
             message = 'Select at least one item to continue.'
 
 
-def select_options(clients, title, labels, groups=None, allow_empty=False, required=None, initial_selected=None, back_label=None, runtime_label=None):
+def select_options(clients, title, labels, groups=None, allow_empty=False, required=None, initial_selected=None, back_label=None, runtime_label=None, details=None):
     required = set(required or [])
     if sys.stdin.isatty() and sys.stdout.isatty() and os.environ.get('TERM', 'dumb') != 'dumb':
-        return curses.wrapper(checklist, clients, title, labels, groups, allow_empty, required, initial_selected, back_label, runtime_label)
+        return curses.wrapper(checklist, clients, title, labels, groups, allow_empty, required, initial_selected, back_label, runtime_label, details)
     initial_selected = set(initial_selected or []) | required
     if runtime_label:
         print(f'Runtime: {runtime_label}')
@@ -514,7 +693,8 @@ def print_change_recap(target_root, scope, clients, skills, groups, servers, pre
             for name in selected:
                 add(f'    • {name}', 'item')
                 if skill_catalogue:
-                    add(f'      {_compact_metadata_label(catalogue_metadata(skill_catalogue, name))}', 'meta')
+                    for detail in skill_metadata_lines(catalogue_metadata(skill_catalogue, name), availability=skill_detail_availability(skill_catalogue, name)):
+                        add(f'      {detail}', 'meta')
 
     if servers:
         add()
@@ -522,7 +702,8 @@ def print_change_recap(target_root, scope, clients, skills, groups, servers, pre
         for name in servers:
             add(f'• {name}', 'item')
             if mcp_catalogue:
-                add(f'  {_compact_metadata_label(catalogue_metadata(mcp_catalogue, name))}', 'meta')
+                for detail in mcp_metadata_lines(catalogue_metadata(mcp_catalogue, name)):
+                    add(f'  {detail}', 'meta')
 
     if plan and plan.warnings:
         add()
@@ -658,6 +839,7 @@ def main():
                         required=required_skills,
                         initial_selected=skills,
                         back_label='Back',
+                        details=catalogue_detail_labels(skill_catalogue, available_skills),
                     )
                     if skill_selection is BACK:
                         break
@@ -678,6 +860,7 @@ def main():
                         allow_empty=True,
                         initial_selected=selected_mcp,
                         back_label='Back',
+                        details=catalogue_detail_labels(mcp_catalogue, available_mcp),
                     )
                     if mcp_selection is BACK:
                         if 'skills' in components:
@@ -734,14 +917,11 @@ def main():
     if skills:
         print('Skills: ' + ', '.join(skills))
         for name in skills:
-            print(f'  {name}: {metadata_summary(catalogue_metadata(skill_catalogue, name))}')
+            print(f'Skill {name}:')
+            for detail in skill_metadata_lines(catalogue_metadata(skill_catalogue, name), availability=skill_detail_availability(skill_catalogue, name)):
+                print(f'  {detail}')
     for name in selected_mcp:
-        definition = servers[name]
-        if 'url' in definition:
-            print(f'MCP {name}: remote OAuth server')
-        else:
-            print(f"MCP {name}: local command {definition['command']}")
-        print(f'  {metadata_summary(catalogue_metadata(mcp_catalogue, name))}')
+        print(f'MCP {name}: {mcp_metadata_summary(catalogue_metadata(mcp_catalogue, name))}')
     print_change_recap(
         target_root,
         scope,
